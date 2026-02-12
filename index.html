@@ -12,14 +12,15 @@
     h1 {
       margin-bottom: 10px;
     }
-    select {
-      padding: 6px;
+    input, select {
+      padding: 8px;
+      margin-right: 10px;
       margin-bottom: 15px;
     }
     table {
       border-collapse: collapse;
       background: white;
-      width: 600px;
+      width: 700px;
     }
     th, td {
       padding: 10px;
@@ -36,9 +37,14 @@
 
 <h1>Skater Leaderboard</h1>
 
-<label>Filter by Division:</label>
+<input
+  type="text"
+  id="searchInput"
+  placeholder="Search skater..."
+/>
+
 <select id="divisionFilter">
-  <option value="all">All</option>
+  <option value="all">All divisions</option>
 </select>
 
 <table id="leaderboard">
@@ -56,6 +62,8 @@
 const SHEET_URL =
 "https://docs.google.com/spreadsheets/d/1pnnqtdQ4FzLAxpzkta7pRzDs2RoqtuZ9-_CdJcqtYD0/export?format=csv&gid=1850152860"
 
+let allData = []
+
 async function loadData() {
   const res = await fetch(SHEET_URL)
   const text = await res.text()
@@ -68,7 +76,7 @@ async function loadData() {
     let [name, division, points] = rows[i]
 
     if (!name && !division) continue
-    if (name.includes("Total")) continue
+    if (name && name.includes("Total")) continue
     if (name === "Grand Total") continue
 
     if (name) currentName = name
@@ -82,14 +90,37 @@ async function loadData() {
     }
   }
 
-  return data
+  allData = data
+  setupFilter()
+  render()
 }
 
-function renderTable(data) {
+function setupFilter() {
+  const filter = document.getElementById("divisionFilter")
+  const divisions = [...new Set(allData.map(d => d.division))]
+
+  divisions.forEach(div => {
+    const opt = document.createElement("option")
+    opt.value = div
+    opt.textContent = div
+    filter.appendChild(opt)
+  })
+}
+
+function render() {
   const tbody = document.querySelector("#leaderboard tbody")
+  const search = document.getElementById("searchInput").value.toLowerCase()
+  const division = document.getElementById("divisionFilter").value
+
   tbody.innerHTML = ""
 
-  data
+  allData
+    .filter(d =>
+      division === "all" ? true : d.division === division
+    )
+    .filter(d =>
+      d.name.toLowerCase().includes(search)
+    )
     .sort((a, b) => b.points - a.points)
     .forEach(row => {
       const tr = document.createElement("tr")
@@ -102,34 +133,13 @@ function renderTable(data) {
     })
 }
 
-function setupFilter(data) {
-  const filter = document.getElementById("divisionFilter")
-  const divisions = [...new Set(data.map(d => d.division))]
+document.getElementById("searchInput")
+  .addEventListener("input", render)
 
-  divisions.forEach(div => {
-    const opt = document.createElement("option")
-    opt.value = div
-    opt.textContent = div
-    filter.appendChild(opt)
-  })
+document.getElementById("divisionFilter")
+  .addEventListener("change", render)
 
-  filter.addEventListener("change", () => {
-    const value = filter.value
-    if (value === "all") {
-      renderTable(data)
-    } else {
-      renderTable(data.filter(d => d.division === value))
-    }
-  })
-}
-
-async function init() {
-  const data = await loadData()
-  setupFilter(data)
-  renderTable(data)
-}
-
-init()
+loadData()
 </script>
 
 </body>
