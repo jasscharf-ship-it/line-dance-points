@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Skater Leaderboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background: #f5f5f5;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    select {
+      padding: 6px;
+      margin-bottom: 15px;
+    }
+    table {
+      border-collapse: collapse;
+      background: white;
+      width: 600px;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background: #222;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Skater Leaderboard</h1>
+
+<label>Filter by Division:</label>
+<select id="divisionFilter">
+  <option value="all">All</option>
+</select>
+
+<table id="leaderboard">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Division</th>
+      <th>Points</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+const SHEET_URL =
+"https://docs.google.com/spreadsheets/d/1pnnqtdQ4FzLAxpzkta7pRzDs2RoqtuZ9-_CdJcqtYD0/export?format=csv&gid=1850152860"
+
+async function loadData() {
+  const res = await fetch(SHEET_URL)
+  const text = await res.text()
+  const rows = text.split("\n").map(r => r.split(","))
+
+  const data = []
+  let currentName = ""
+
+  for (let i = 1; i < rows.length; i++) {
+    let [name, division, points] = rows[i]
+
+    if (!name && !division) continue
+    if (name.includes("Total")) continue
+    if (name === "Grand Total") continue
+
+    if (name) currentName = name
+
+    if (division && points) {
+      data.push({
+        name: currentName,
+        division,
+        points: Number(points)
+      })
+    }
+  }
+
+  return data
+}
+
+function renderTable(data) {
+  const tbody = document.querySelector("#leaderboard tbody")
+  tbody.innerHTML = ""
+
+  data
+    .sort((a, b) => b.points - a.points)
+    .forEach(row => {
+      const tr = document.createElement("tr")
+      tr.innerHTML = `
+        <td>${row.name}</td>
+        <td>${row.division}</td>
+        <td>${row.points}</td>
+      `
+      tbody.appendChild(tr)
+    })
+}
+
+function setupFilter(data) {
+  const filter = document.getElementById("divisionFilter")
+  const divisions = [...new Set(data.map(d => d.division))]
+
+  divisions.forEach(div => {
+    const opt = document.createElement("option")
+    opt.value = div
+    opt.textContent = div
+    filter.appendChild(opt)
+  })
+
+  filter.addEventListener("change", () => {
+    const value = filter.value
+    if (value === "all") {
+      renderTable(data)
+    } else {
+      renderTable(data.filter(d => d.division === value))
+    }
+  })
+}
+
+async function init() {
+  const data = await loadData()
+  setupFilter(data)
+  renderTable(data)
+}
+
+init()
+</script>
+
+</body>
+</html>
